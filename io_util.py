@@ -37,7 +37,7 @@ def robin_login():
     '''TODO: add docstring
     '''
     my_trader = Robinhood()
-    qr = 'PQZJUCVO4CNVUWYP'
+    qr = 'KV7Y7J4RQWDSHOIH'
     username, _, password = get_creds('serverone-rh')
 
     my_trader.login(username=username,
