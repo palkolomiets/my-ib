@@ -5,13 +5,12 @@ import re
 import bs4
 import requests
 import base64
-import sys
-import smtplib
 import logging
-import netrc
+import os
 
+import io_util
 
-mainDir = ('/home/pavel/earningsCalendar/')
+mainDir = os.path.dirname(os.path.abspath(__file__))
 logFile = mainDir + 'watchlistEarnings.log'
 
 # Set up the logging settings
@@ -30,7 +29,7 @@ def nasdaq_earnings_date(ticker=''):
     """
 
     try:
-        earnings_url = 'http://www.nasdaq.com/earnings/report/' + ticker.lower()
+        earnings_url = 'http://old.nasdaq.com/earnings/report/' + ticker.lower()
         request = requests.get(earnings_url)
         soup = bs4.BeautifulSoup(request.text, 'html.parser')
         tag = soup.find(text=re.compile('Earnings announcement*'))
@@ -39,59 +38,27 @@ def nasdaq_earnings_date(ticker=''):
         logging.exception("Pulling data failed")        
         
 
-watch_list = ['UVXY', 
-            'AAPL', 
-            'DB', 
-            'AMD', 
-            'NFLX', 
-            'TSLA', 
-            'SNAP']
+watch_list = \
+[
+    'UVXY', 
+    'AAPL', 
+    'DB', 
+    'AMD', 
+    'NFLX', 
+    'TSLA', 
+    'SNAP'
+]
 
 dates_dict = {sym:nasdaq_earnings_date(sym) for sym in watch_list}
 
 df = pd.DataFrame.from_dict(dates_dict, orient='index')
 df.columns = ['Date']
 
-def send_email(user, pwd, recipient, body):
-    '''Sending an email or text message via gmail smtp
-    Code Source:
-    (https://stackoverflow.com/questions/10147455/how-to-send-an-email
-    -with-gmail-as-provider-using-python)
+username, account, password = io_util.get_creds('serverone-g')
 
-    TODO: add args, returns
-
-    '''
-
-
-    FROM = user
-    TO = recipient if type(recipient) is list else [recipient]
-    TEXT = body
-
-    # Prepare actual message
-    message = """From: %s\nTo: %s\n\n%s
-    """ % (FROM, ", ".join(TO), TEXT)
-    try:
-        # SMTP_SSL Example
-        server_ssl = smtplib.SMTP_SSL("smtp.gmail.com", 465)
-        server_ssl.ehlo() # optional, called by login()
-        server_ssl.login(user, pwd)  
-        # ssl server doesn't support or need tls,
-        # so don't call server_ssl.starttls() 
-        server_ssl.sendmail(FROM, TO, message)
-        #server_ssl.quit()
-        server_ssl.close()
-        #print 'successfully sent message'
-    except:
-        logging.exception("Failed to send text")
-
-creds = netrc.netrc('/home/pavel/.netrc')
-username, account, password = creds.authenticators('serverone-g')
-
-# Send out an email with the last prices of watchlist stocks
-send_email(usr = username, 
-            pwd = base64.b64decode(password), 
-            recipient = account, 
+# Send out an email with the next earnings date for watch_list symbols
+io_util.send_email(user = username,
+            pwd = base64.b64decode(password).decode('utf-8'),
+            recipient = account,
             body = df.sort_values(by = 'Date')
             )
-
-# TODO: add boilerplate
